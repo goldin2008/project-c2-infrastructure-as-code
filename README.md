@@ -18,6 +18,8 @@ A free user-account on [www.lucidchart.com](www.lucidchart.com) is required to b
 
 > https://github.com/udacity/nd9991-c2-Infrastructure-as-Code-v1
 
+> https://github.com/udacity/nd9991-c2-Infrastructure-as-Code-v1-Exercises_Solution
+
 ## 1 - Project Introduction
 
 Project : Deploy a high-availability web app using CloudFormation
