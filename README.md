@@ -13,7 +13,10 @@ An editor would be helpful to visualize the image as well as code. Download the 
 
 ##### 3. An account on www.lucidchart.com
 A free user-account on [www.lucidchart.com](www.lucidchart.com) is required to be able to draw the web app architecture diagrams for AWS.
+
 # project-c2-infrastructure-as-code
+
+> https://github.com/udacity/nd9991-c2-Infrastructure-as-Code-v1
 
 ## 1 - Project Introduction
 
