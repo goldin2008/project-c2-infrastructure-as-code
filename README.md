@@ -4,7 +4,7 @@ This folder provides the supporting material and starter code for the "ND9991 - 
 2. supporting_material - It contains the essential files (.yml, .json, .bat, .sh, and .jpeg) that were referred in the different lessons of this course.
 
 ![Configuring and managing various infrastructure resources on AWS cloud using CloudFormation.](aws-services.png)
-
+Configuring and managing various infrastructure resources on AWS cloud using CloudFormation.
 
 ### Dependencies
 ##### 1. AWS account
