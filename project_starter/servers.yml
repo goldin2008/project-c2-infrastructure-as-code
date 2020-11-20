@@ -1,0 +1,190 @@
+Description: >
+  goldin2008 - Udagram Project
+  Template for the servers an resources required by the Udagram app
+
+Parameters:
+    EnvironmentName:
+        Description: An environment name that will be prefixed to resource names
+        Type: String
+
+Resources:
+    WebServerSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Allow http to our hosts and SSH from local only
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 80
+                  ToPort: 80
+                  CidrIp: 0.0.0.0/0
+                - IpProtocol: tcp
+                  FromPort: 22
+                  ToPort: 22
+                  CidrIp: 0.0.0.0/0
+            SecurityGroupEgress:
+                - IpProtocol: tcp
+                  FromPort: 0
+                  ToPort: 65535
+                  CidrIp: 0.0.0.0/0
+            VpcId:
+                Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
+
+    LBSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Allow http traffic to the load balancer
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 80
+                  ToPort: 80
+                  CidrIp: 0.0.0.0/0
+            SecurityGroupEgress:
+                - IpProtocol: tcp
+                  FromPort: 80
+                  ToPort: 80
+                  CidrIp: 0.0.0.0/0
+            VpcId:
+                Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
+
+    UdagramS3ReadOnlyManagedPolicy:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                    -
+                        Sid: "UdagramS3ReadOnlyAccess"
+                        Effect: "Allow"
+                        Action:
+                            - "s3:Get*"
+                            - "s3:List*"
+                        Resource: "*"
+
+    UdagramS3ReadOnlyEC2:
+        Type: 'AWS::IAM::Role'
+        Properties:
+            RoleName: 
+                !Sub ${EnvironmentName}-Role
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    - Effect: "Allow"
+                      Principal:
+                          Service:
+                          - "ec2.amazonaws.com"
+                      Action:
+                      - 'sts:AssumeRole'
+            Path: "/"
+
+    RolePolicies:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyName: AmazonS3ReadOnlyAccess
+            PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                    - Effect: Allow
+                      Action: 
+                          - s3:Get*
+                          - s3:List*
+                      Resource: "*"
+            Roles:
+            -   Ref: UdagramS3ReadOnlyEC2
+
+    UdagramS3ReadOnlyInstanceProfile:
+        Type: 'AWS::IAM::InstanceProfile'
+        Properties:
+            Roles:
+                - !Ref UdagramS3ReadOnlyEC2
+
+    WebAppLaunchConfig:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+            UserData:
+                Fn::Base64: !Sub |
+                    #!/bin/bash
+                    apt-get update -y
+                    apt-get install unzip awscli -y
+                    apt-get install apache2 -y
+                    systemctl start apache2.service
+                    cd /var/www/html
+                    aws s3 cp s3://udacity-devopsnd-project-2/index.html .
+            ImageId: ami-00ddb0e5626798373
+            KeyName: Udagram
+            SecurityGroups:
+                - Ref: WebServerSecurityGroup
+            InstanceType: t3.medium
+            IamInstanceProfile:
+                Ref: "UdagramS3ReadOnlyInstanceProfile"
+            BlockDeviceMappings:
+                - DeviceName: /dev/sdk
+                  Ebs:
+                      VolumeSize: 10
+
+    WebAppAutoScalingGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            VPCZoneIdentifier:
+                -
+                    Fn::ImportValue:
+                        !Sub "${EnvironmentName}-PRIV-SUBNETS"
+            LaunchConfigurationName:
+                Ref: WebAppLaunchConfig
+            MinSize: 4
+            MaxSize: 8
+            TargetGroupARNs:
+                - Ref: WebAppTargetGroup
+
+    WebAppLB:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            Subnets:
+                - Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
+                - Fn::ImportValue: !Sub "${EnvironmentName}-PUB2-SN"
+            SecurityGroups:
+                - Ref: LBSecurityGroup
+
+    Listener:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            DefaultActions:
+                - Type: forward
+                  TargetGroupArn:
+                      Ref: WebAppTargetGroup
+            LoadBalancerArn:
+                Ref: WebAppLB
+            Port: 80
+            Protocol: HTTP
+
+    ALBListenerRule:
+        Type: AWS::ElasticLoadBalancingV2::ListenerRule
+        Properties:
+            Actions:
+                - Type: forward
+                  TargetGroupArn: !Ref WebAppTargetGroup
+            Conditions:
+                - Field: path-pattern
+                  Values: [/]
+            ListenerArn: !Ref Listener
+            Priority: 1
+
+    WebAppTargetGroup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            HealthCheckIntervalSeconds: 30
+            HealthCheckPath: /
+            HealthCheckProtocol: HTTP
+            HealthCheckTimeoutSeconds: 20
+            HealthyThresholdCount: 2
+            Port: 80
+            Protocol: HTTP
+            UnhealthyThresholdCount: 5
+            VpcId:
+                Fn::ImportValue:
+                    Fn::Sub: "${EnvironmentName}-VPCID"
+Outputs:
+    StackLoadBalancerURL:
+        Description: Load Balancer DNS Name
+        Value: !Join ["", ["http://", !GetAtt LoadBalancer.DNSName]]
+        Export:
+            Name: !Sub ${EnvironmentName}-DNSNAME
