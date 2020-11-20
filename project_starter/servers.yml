@@ -7,6 +7,14 @@ Parameters:
         Description: An environment name that will be prefixed to resource names
         Type: String
 
+    ServerAMIId:
+        Description: AMI ID for EC2 instances.
+        Type: String
+
+    InstanceType:
+        Description: EC2 instance type
+        Type: String
+
 Resources:
     WebServerSecurityGroup:
         Type: AWS::EC2::SecurityGroup
@@ -109,11 +117,11 @@ Resources:
                     systemctl start apache2.service
                     cd /var/www/html
                     aws s3 cp s3://udacity-devopsnd-project-2/index.html .
-            ImageId: ami-00ddb0e5626798373
+            ImageId: !Ref ServerAMIId
             KeyName: Udagram
             SecurityGroups:
                 - Ref: WebServerSecurityGroup
-            InstanceType: t3.medium
+            InstanceType: !Ref InstanceType
             IamInstanceProfile:
                 Ref: "UdagramS3ReadOnlyInstanceProfile"
             BlockDeviceMappings:
