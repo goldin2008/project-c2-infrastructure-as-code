@@ -118,7 +118,6 @@ Resources:
                     cd /var/www/html
                     aws s3 cp s3://udacity-devopsnd-project-2/index.html .
             ImageId: !Ref ServerAMIId
-            KeyName: Udagram
             SecurityGroups:
                 - Ref: WebServerSecurityGroup
             InstanceType: !Ref InstanceType
@@ -133,9 +132,8 @@ Resources:
         Type: AWS::AutoScaling::AutoScalingGroup
         Properties:
             VPCZoneIdentifier:
-                -
-                    Fn::ImportValue:
-                        !Sub "${EnvironmentName}-PRIV-SUBNETS"
+                - Fn::ImportValue:
+                      !Sub "${EnvironmentName}-PRIV-SUBNETS"
             LaunchConfigurationName:
                 Ref: WebAppLaunchConfig
             MinSize: 4
